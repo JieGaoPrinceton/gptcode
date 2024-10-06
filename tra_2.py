@@ -1,9 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.optimize import linear_sum_assignment
 from scipy.ndimage import gaussian_filter
 from skimage.measure import label, regionprops
 import imageio
+from sklearn.cluster import KMeans
 
 # 模拟多帧的超声信号数据用于微泡跟踪
 np.random.seed(0)
@@ -31,7 +31,7 @@ for frame_idx in range(num_frames):
 # 使用高斯滤波对每帧图像进行平滑处理，并生成带有噪声的图像
 frames = [gaussian_filter(frame, sigma=2) + 0.02 * np.random.rand(*image_size) for frame in frames]
 
-# 微泡跟踪算法
+# 微泡跟踪算法（使用 KMeans 聚类）
 tracked_positions = []
 for frame_idx, frame in enumerate(frames):
     # 使用简单阈值对图像进行二值化
@@ -41,29 +41,17 @@ for frame_idx, frame in enumerate(frames):
     # 寻找气泡的轮廓
     labeled_frame, num_features = label(binary_frame, return_num=True)
     regions = regionprops(labeled_frame)
-    contours = [region.coords for region in regions]
-    detected_positions = [np.mean(contour, axis=0).astype(int) for contour in contours]
+    detected_positions = [region.centroid for region in regions]
 
-    # 进行匹配，使用匈牙利算法实现微泡的跟踪
+    # 使用 KMeans 聚类进行微泡跟踪
     if frame_idx == 0:
         # 第一帧初始化
         tracked_positions = detected_positions
     else:
-        if len(tracked_positions) > 0 and len(detected_positions) > 0:
-            # 计算代价矩阵（欧氏距离）
-            cost_matrix = np.zeros((len(tracked_positions), len(detected_positions)))
-            for i, track in enumerate(tracked_positions):
-                for j, detect in enumerate(detected_positions):
-                    cost_matrix[i, j] = np.linalg.norm(np.array(track) - np.array(detect))
-
-            # 匈牙利算法最小化代价
-            row_ind, col_ind = linear_sum_assignment(cost_matrix)
-
-            # 更新微泡位置
-            updated_positions = []
-            for i, j in zip(row_ind, col_ind):
-                updated_positions.append(detected_positions[j])
-            tracked_positions = updated_positions
+        if len(detected_positions) > 0:
+            kmeans = KMeans(n_clusters=min(len(tracked_positions), len(detected_positions)), random_state=0)
+            kmeans.fit(detected_positions)
+            tracked_positions = kmeans.cluster_centers_
 
     # 保存追踪结果
     frames[frame_idx] = (frame, tracked_positions)
@@ -89,4 +77,4 @@ for frame_idx, (frame, positions) in enumerate(frames):
     plt.close(fig)
 
 # 保存为GIF
-imageio.mimsave('bubble_tracking1.gif', images, fps=2)
+imageio.mimsave('bubble_tracking2.gif', images, fps=2)
