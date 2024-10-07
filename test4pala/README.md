@@ -15,9 +15,7 @@ Casorati 矩阵是一种用于处理多维数据的重构方法，常用于信�
 
 这种转换的好处在于，您可以方便地对多维数据进行矩阵操作，例如奇异值分解（SVD）、主成分分析（PCA）等，来提取数据的特征或进行降维。
 
-
 # 评估方法
-
 
 在程序评估中，常用的指标包括 **RMSE**、**Jaccard**、**精度**、**Gap** 和 **时间**，每个指标用于衡量不同的方面，帮助评估模型或算法的性能。以下是对这些指标的详细介绍：
 
@@ -97,3 +95,82 @@ Casorati 矩阵是一种用于处理多维数据的重构方法，常用于信�
 2. **归一化评分**：对所有指标进行归一化处理（例如，将它们的范围调整到 [0, 1] 之间），然后再进行加权组合。
 
 这能帮助评估模型的整体性能，不仅关注模型的准确度，还考虑模型的时间效率、泛化能力等。通过结合不同的指标，能够更全面地评估模型在实际应用中的表现。
+
+
+# 读取Raw Data的核心代码
+
+```
+IQfiles = dir([mydatapath '*.mat']);
+Nbuffers = numel(IQfiles);
+load([IQfiles(1).folder filesep IQfiles(1).name], 'UF', 'PData');
+```
+
+
+* 获取 IQ 文件列表 [`IQfiles`](vscode-file://vscode-app/c:/Users/ericg/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/code/electron-sandbox/workbench/workbench.esm.html)。
+* 计算文件数量 [`Nbuffers`](vscode-file://vscode-app/c:/Users/ericg/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/code/electron-sandbox/workbench/workbench.esm.html)。
+* 加载第一个 IQ 文件，提取 [`UF`](vscode-file://vscode-app/c:/Users/ericg/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/code/electron-sandbox/workbench/workbench.esm.html) 和 [`PData`](vscode-file://vscode-app/c:/Users/ericg/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/code/electron-sandbox/workbench/workbench.esm.html) 变量。
+
+```
+load([IQfiles(1).folder filesep IQfiles(1).name], 'IQ');
+NFrames = size(IQ, 3);
+PData.Origin = [0 PData.Size(2)/2*PData.PDelta(2) 0];
+framerate = UF.FrameRateUF;
+```
+
+
+* 加载第一个 IQ 文件，提取 [`IQ`](vscode-file://vscode-app/c:/Users/ericg/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/code/electron-sandbox/workbench/workbench.esm.html) 数据。
+* 计算帧数 [`NFrames`](vscode-file://vscode-app/c:/Users/ericg/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/code/electron-sandbox/workbench/workbench.esm.html)。
+* 设置 `PData.Origin` 参数。
+* 获取帧率 [`framerate`](vscode-file://vscode-app/c:/Users/ericg/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/code/electron-sandbox/workbench/workbench.esm.html)。这个帧率，在mat文件的UF结构体中已经设定好了。
+
+```ULM
+'res',10,...                        % Resolution factor. Typically 10 for images at lambda/10.
+'SVD_cutoff',[5 UF.NbFrames],...    % SVD filtering
+'max_linking_distance',2,...        % Maximum linking distance between two frames to reject pairing, in pixels units (UF.scale(1)). (2-4 pixel).
+'min_length', 15,...                % Minimum length of the tracks. (5-20)
+'fwhm',[1 1]*3,...                  % Size of the mask for localization. (3x3 for pixel at lambda, 5x5 at lambda/2). [fwhmz fwhmx]
+'max_gap_closing', 0,...            % Allowed gap in microbubbles pairing. (0)
+'size',[PData.Size(1),PData.Size(2),UF.NbFrames],... % Size of the data [z, x, t]
+'scale',[1 1 1/framerate],...       % Scale [z x t]
+'numberOfFramesProcessed',UF.NbFrames,... % Number of processed frames
+'interp_factor',1/res...            % Interpolation factor
+);
+
+```
+
+
+### 字段解释：
+
+1. **numberOfParticles**：
+   * **值**：70
+   * **解释**：每帧的粒子数量。通常在 30 到 100 之间。
+2. **res**：
+   * **值**：10
+   * **解释**：分辨率因子。通常为 10，用于生成分辨率为 lambda/10 的图像。
+3. **SVD\_cutoff**：
+   * **值**：[5 UF.NbFrames]
+   * **解释**：SVD 滤波的截止值。这里设置为从第 5 帧到总帧数 `UF.NbFrames`。
+4. **max\_linking\_distance**：
+   * **值**：2
+   * **解释**：两帧之间的最大链接距离，以像素为单位（`UF.scale(1)`）。通常在 2 到 4 像素之间。
+5. **min\_length**：
+   * **值**：15
+   * **解释**：轨迹的最小长度。通常在 5 到 20 之间。
+6. **fwhm**：
+   * **值**：[1 1]\*3
+   * **解释**：用于定位的掩模大小。对于像素大小为 lambda 的图像，通常为 3x3；对于像素大小为 lambda/2 的图像，通常为 5x5。这里设置为 [3 3]。
+7. **max\_gap\_closing**：
+   * **值**：0
+   * **解释**：微泡配对中允许的最大间隙。这里设置为 0。
+8. **size**：
+   * **值**：[PData.Size(1), PData.Size(2), UF.NbFrames]
+   * **解释**：数据的大小，包括 z 方向、x 方向和时间方向的尺寸。
+9. **scale**：
+   * **值**：[1 1 1/framerate]
+   * **解释**：比例因子，包括 z 方向、x 方向和时间方向的比例。时间方向的比例为 1/帧率。
+10. **numberOfFramesProcessed**：
+    * **值**：UF.NbFrames
+    * **解释**：处理的帧数。
+11. **interp\_factor**：
+    * **值**：1/res
+    * **解释**：插值因子。这里设置为 1/分辨率因子。
