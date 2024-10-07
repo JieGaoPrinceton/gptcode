@@ -1,14 +1,15 @@
 import os
 from scipy.io import loadmat
 import numpy as np
+from datetime import datetime
 
 def read_and_print_mat_struct(filename):
     # 读取.mat文件
     mat_data = loadmat(filename)
     
-    # 获取文件名并创建输出.txt文件路径
-    file_name_without_ext = os.path.splitext(os.path.basename(filename))[0]
-    txt_file_path = os.path.join(os.getcwd(), "{file_name_without_ext}_output.txt")
+    # 获取当前时间戳并创建输出.txt文件路径
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    txt_file_path = os.path.join(os.path.dirname(filename), f"{timestamp}_output.txt")
     
     # 打开.txt文件写入数据
     with open(txt_file_path, 'w') as txt_file:
@@ -32,7 +33,7 @@ def read_and_print_mat_struct(filename):
                 print(value_str)
             print("\n")
     
-    print("数据已成功写入文件: {txt_file_path}")
+    print(f"数据已成功写入文件: {txt_file_path}")
 
 # 获取当前脚本目录
 current_dir = os.path.dirname(os.path.abspath(__file__))
