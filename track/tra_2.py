@@ -4,6 +4,7 @@ from scipy.ndimage import gaussian_filter
 from skimage.measure import label, regionprops
 import imageio
 from sklearn.cluster import KMeans
+from datetime import datetime
 
 # 模拟多帧的超声信号数据用于微泡跟踪
 np.random.seed(0)
@@ -25,6 +26,13 @@ for frame_idx in range(num_frames):
         bubble_trajectories[idx] = np.vstack([bubble, new_position])
         # 在帧中添加气泡信号
         x, y = new_position
+        frame[x, y] = 1
+
+    # 随机添加新的气泡
+    if np.random.rand() < 0.1:  # 10%的概率添加新气泡
+        new_bubble_position = np.random.randint(0, image_size[0], size=2)
+        bubble_trajectories.append(np.array([new_bubble_position]))
+        x, y = new_bubble_position
         frame[x, y] = 1
     frames.append(frame)
 
@@ -53,6 +61,12 @@ for frame_idx, frame in enumerate(frames):
             kmeans.fit(detected_positions)
             tracked_positions = kmeans.cluster_centers_
 
+    # 绘制微泡的轨迹
+    for idx, bubble in enumerate(bubble_trajectories):
+        if len(bubble) > 1:
+            bubble_path = np.array(bubble)
+            plt.plot(bubble_path[:, 1], bubble_path[:, 0], 'r-', linewidth=1)
+
     # 保存追踪结果
     frames[frame_idx] = (frame, tracked_positions)
 
@@ -77,4 +91,11 @@ for frame_idx, (frame, positions) in enumerate(frames):
     plt.close(fig)
 
 # 保存为GIF
-imageio.mimsave('bubble_tracking2.gif', images, fps=2)
+# 获取当前时间的分和秒
+current_time = datetime.now().strftime("%M_%S")
+
+# 生成文件名
+filename = f'tra_2_{current_time}.gif'
+
+# 保存为GIF
+imageio.mimsave(filename, images, fps=2)
